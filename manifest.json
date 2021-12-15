@@ -1,0 +1,19 @@
+{
+
+  "manifest_version": 2,
+  "name": "Baixar Tabelas de Expedientes",
+  "description": "Permite aos usuários fazer o download das tabelas de expedientes no PJe, sem ter de paginar manualmente por elas.",
+  "version": "0.2",
+  "homepage_url": "https://github.com/antoniolucasnobar/download-tabelas-expedientes",
+  "icons": {
+    "96": "icons/download-expedientes-96.png"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["https://*.jus.br/*/Painel/painel_usuario/advogado.seam*"],
+      "js": ["jquery.js",
+        "download-tabelas-expedientes.js"]
+    }
+  ]
+}
