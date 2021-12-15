@@ -3,7 +3,13 @@
   "manifest_version": 2,
   "name": "Baixar Tabelas de Expedientes",
   "description": "Permite aos usuários fazer o download das tabelas de expedientes no PJe, sem ter de paginar manualmente por elas.",
-  "version": "0.2",
+  "version": "0.2.1",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "{e72726e9-d736-46f8-8315-7410a179d471}",
+      "update_url": "https://raw.githubusercontent.com/antoniolucasnobar/download-tabelas-expedientes/main/update.json"
+    }
+  },
   "homepage_url": "https://github.com/antoniolucasnobar/download-tabelas-expedientes",
   "icons": {
     "96": "icons/download-expedientes-96.png"

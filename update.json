@@ -1,10 +1,10 @@
 {
   "addons": {
-    "{abcd1234-1abc-1234-12ab-abcdef123456}": {
+    "{e72726e9-d736-46f8-8315-7410a179d471}": {
       "updates": [
         {
           "version": "0.2.1",
-          "update_link": "https://example.com/addon-0.1.xpi"
+          "update_link": "https://raw.githubusercontent.com/antoniolucasnobar/download-tabelas-expedientes/main/web-ext-artifacts/baixar_tabelas_de_expedientes-0.2.1-an+fx.xpi"
         }
       ]
     }
