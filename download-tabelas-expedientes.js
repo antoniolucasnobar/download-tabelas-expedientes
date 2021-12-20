@@ -142,25 +142,26 @@ function carregarPagina(gridId, numeroPagina) {
     function (data, status, jqXHR) {
       // success callback
       //   console.info(data);
+      carregarTabela(gridId, numeroPagina, data);
 
-      const paginaId = gridId + "List";
-      const apenasRegistrosId = paginaId + ":tb";
-
-      const elemento = data.getElementById( paginaId );
-      const tbody = data.getElementById( apenasRegistrosId );
-      total[numeroPagina] = jQuery(tbody).find("tr").length;
-      console.info(total);
-      let pagina = elemento.outerHTML;
-      //   console.info(pagina);
-      tabelas[numeroPagina] = pagina;
-      //   console.info(tabelas);
-      console.info("pagina: " + numeroPagina);
-      console.info("Total de paginas: " + Object.keys(tabelas).length);
-      // var arquivoFinal = '<table>' + pagina + pagina + '</table>'
-
-      // download('tabela.html', arquivoFinal);
     }
   );
+}
+
+function carregarTabela(gridId, numeroPagina, data) {
+  const paginaId = gridId + "List";
+  const apenasRegistrosId = paginaId + ":tb";
+
+  const elemento = data.getElementById( paginaId );
+  const tbody = data.getElementById( apenasRegistrosId );
+  total[numeroPagina] = jQuery(tbody).find("tr").length;
+  console.info(total);
+  let pagina = elemento.outerHTML;
+  //   console.info(pagina);
+  tabelas[numeroPagina] = pagina;
+  //   console.info(tabelas);
+  console.info("pagina: " + numeroPagina);
+  console.info("Total de paginas: " + Object.keys(tabelas).length);
 }
 
 function download(filename, textInput) {
@@ -185,8 +186,14 @@ function waitFor(conditionFunction) {
 }
 
 function carregarDados(gridId, totalPaginas) {
-  for (let i = 1; i <= totalPaginas; i++) {
-    carregarPagina(gridId, i);
+  console.info(totalPaginas);
+  // se tem apenas uma pagina, carrega a pagina que está na tela.
+  if (totalPaginas == 1) {
+    carregarTabela(gridId, 1, document);
+  } else {
+    for (let i = 1; i <= totalPaginas; i++) {
+      carregarPagina(gridId, i);
+    }
   }
 }
 
