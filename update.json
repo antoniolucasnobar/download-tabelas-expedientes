@@ -5,6 +5,10 @@
         {
           "version": "0.2.1",
           "update_link": "https://raw.githubusercontent.com/antoniolucasnobar/download-tabelas-expedientes/main/web-ext-artifacts/baixar_tabelas_de_expedientes-0.2.1-an+fx.xpi"
+        },
+        {
+          "version": "0.4.1",
+          "update_link": "https://raw.githubusercontent.com/antoniolucasnobar/download-tabelas-expedientes/main/web-ext-artifacts/baixar_tabelas_de_expedientes-0.4.1-an+fx.xpi"
         }
       ]
     }

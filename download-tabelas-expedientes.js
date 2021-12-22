@@ -33,7 +33,8 @@ var agrupadores = {
 
 };
 var tabelas = {};
-var total = [0];
+// var total = [0];
+var numeroDePaginas = undefined;
 
 function replaceLast(find, replace, string) {
   const lastIndex = string.lastIndexOf(find);
@@ -135,33 +136,38 @@ function carregarPagina(gridId, numeroPagina) {
   urlParams = decodeURIComponent( unescape( unescape(urlParams)));
   console.info(urlParams);
 
-  jQuery.post(
-      window.location.href, //"/primeirograu/Painel/painel_usuario/advogado.seam", // url
-    urlParams
-      , // data to be submit
-    function (data, status, jqXHR) {
-      // success callback
-      //   console.info(data);
-      carregarTabela(gridId, numeroPagina, data);
+  return new Promise((resolve, reject) => {
+    jQuery.ajax({
+      url: window.location.href,
+      type: 'POST',
+      data: urlParams,
+      success: (data) => {
+        console.info(data)
+        resolve(carregarTabela(gridId, numeroPagina, data));
+      },
+      error: (error) => reject(error),
+    })
+  });
 
-    }
-  );
 }
 
 function carregarTabela(gridId, numeroPagina, data) {
   const paginaId = gridId + "List";
-  const apenasRegistrosId = paginaId + ":tb";
 
-  const elemento = data.getElementById( paginaId );
-  const tbody = data.getElementById( apenasRegistrosId );
-  total[numeroPagina] = jQuery(tbody).find("tr").length;
-  console.info(total);
-  let pagina = elemento.outerHTML;
-  //   console.info(pagina);
-  tabelas[numeroPagina] = pagina;
-  //   console.info(tabelas);
-  console.info("pagina: " + numeroPagina);
+  const grid = data.getElementById(gridId);
+  const totalPagina = grid.querySelectorAll("tr.rich-table-row").length;
+  const tabela =  grid.querySelector("#" + paginaId).outerHTML;
+  const retorno = {
+    numeroPagina,
+    tabela,
+    totalPagina,
+  }
+  tabelas[numeroPagina] = tabela;
   console.info("Total de paginas: " + Object.keys(tabelas).length);
+  jQuery("#loadingText").text("Páginas carregadas: " + Object.keys(tabelas).length + " de " + numeroDePaginas);
+  console.info(retorno);
+  // return pagina;
+  return retorno;
 }
 
 function download(filename, textInput) {
@@ -187,28 +193,33 @@ function waitFor(conditionFunction) {
 
 function carregarDados(gridId, totalPaginas) {
   console.info(totalPaginas);
+  const promises = [];
   // se tem apenas uma pagina, carrega a pagina que está na tela.
   if (totalPaginas == 1) {
-    carregarTabela(gridId, 1, document);
+    promises[1] = Promise.resolve( carregarTabela(gridId, 1, document) );
   } else {
-    for (let i = 1; i <= totalPaginas; i++) {
-      carregarPagina(gridId, i);
+    for (let i = totalPaginas; i >= 1; i--) {
+      promises[i] = carregarPagina(gridId, i);
     }
   }
+  return Promise.all(promises);
 }
 
-function baixarArquivo(totalPaginas, titulo) {
+function baixarDoArquivo(titulo, tabelas) {
   console.info("gerando arquivo para download...");
   let quantidadeTotalTabelas = 0;
   let arquivoFinal = "";
   let comecoArquivo =
-    "<html><head><style>img { display: none;}</style></head><body>";
+    "<html lang='pt-BR'><head><style>img { display: none;} table { width: 100% !important; }</style><title>" + titulo + "</title></head><body>";
 
-  for (let i = 1; i <= totalPaginas; i++) {
-    quantidadeTotalTabelas += total[i];
-    arquivoFinal += "<h3>Página: " + i + "</h3>";
-    arquivoFinal += tabelas[i];
-  }
+  tabelas.sort((a, b) => (a.numeroPagina > b.numeroPagina) ? 1 : -1);
+  tabelas.forEach((item, index) => {
+    if (item) {
+      quantidadeTotalTabelas += item.totalPagina;
+      arquivoFinal += "<h3>Página: " + item.numeroPagina + "</h3>";
+      arquivoFinal += item.tabela;
+    }
+  });
 
   arquivoFinal += "</body></html>";
   arquivoFinal =
@@ -223,14 +234,17 @@ function baixarArquivo(totalPaginas, titulo) {
     arquivoFinal;
   console.info(arquivoFinal);
 
-  download(titulo.replaceAll(" ", "_") + ".html", arquivoFinal);
+  download(titulo.replaceAll(" ", "_") + "_" + convertDate(new Date()) + ".html", arquivoFinal);
+  reiniciarDadosGlobais();
+}
+
+function reiniciarDadosGlobais() {
   tabelas = {};
-  total = [0];
+  // total = [0];
 }
 
 Object.entries(agrupadores).forEach(([key, dadosAgrupador]) => {
-  var button = document.createElement("input"),
-    br = document.createElement("br");
+  const button = document.createElement("input");
   console.log(key, dadosAgrupador); // "someKey" "some value", "hello" "world", "js javascript foreach object"
   var agrupadorId = dadosAgrupador["agrupadorId"]; //'agrPendentesCiencia_header';
 
@@ -256,36 +270,40 @@ Object.entries(agrupadores).forEach(([key, dadosAgrupador]) => {
         agrupador.addEventListener(
       "click",
       function () {
+
+        jQuery("#loadingMask").css('visibility', 'visible');
       const id = dadosAgrupador["gridId"]; //"expedientePendenteGridId";
       console.info(id);
       waitFor((_) => document.getElementById(id) != null).then((_) => {
         // grid = document.getElementById(id);
-        table = document.getElementById(id + "List");
+        const table = document.getElementById(id + "List");
         button.type = "button";
         button.value = "Baixar tabela";
         button.addEventListener(
           "click",
           function (e) {
+            const loadingDiv = "<div class=\"loadingMask\" id=\"loadingMask\" style=\"visibility: hidden;\"><h1 id='loadingText'>Carregando...</h1></div>"
+            const wrapper= document.createElement('div');
+            wrapper.innerHTML= loadingDiv;
+            table.parentNode.insertBefore(wrapper, table);
+            jQuery("#loadingMask").css('visibility', 'visible');
+
             let totalPaginas = 1;
             waitFor((_) => document.getElementById(id) != null)
               .then((_) => {
-                grid = document.getElementById(id);
-                const tdTotalPaginas = jQuery(grid).find(
-                  ".rich-inslider-right-num"
-                );
-                const totalPaginasTabela = jQuery(tdTotalPaginas).html();
-                totalPaginas = totalPaginasTabela
-                  ? totalPaginasTabela
-                  : totalPaginas;
+                const grid = document.getElementById(id);
+                const tdTotalPaginas = grid && grid.querySelector(".rich-inslider-right-num");
+                const totalPaginasTabela = tdTotalPaginas && tdTotalPaginas.textContent;
+                totalPaginas = totalPaginasTabela || totalPaginas;
                 console.info(totalPaginas, id);
-                carregarDados(id, totalPaginas);
-                return totalPaginas;
+                numeroDePaginas = totalPaginas
+                return carregarDados(id, totalPaginas);
               })
-              .then((numeroPaginas) => {
-                console.info("Total no then:" + numeroPaginas);
-                waitFor((_) => jaAcabou(numeroPaginas)).then((_) =>
-                  baixarArquivo(numeroPaginas, dadosAgrupador["titulo"])
-                );
+              .then((tabelasPromise) => {
+                console.info("Total no then:" + numeroDePaginas);
+                console.info(tabelasPromise);
+                document.getElementById("loadingMask").remove();
+                baixarDoArquivo(dadosAgrupador["titulo"], tabelasPromise);
               });
 
             // console.info(tabelas);
@@ -304,8 +322,8 @@ Object.entries(agrupadores).forEach(([key, dadosAgrupador]) => {
   );
 });
 
-function jaAcabou(numeroPaginas) {
-  console.info("ja Acabou?");
-  console.info(Object.keys(tabelas).length, numeroPaginas);
-  return Object.keys(tabelas).length == numeroPaginas;
+function convertDate(inputFormat) {
+  function pad(s) { return (s < 10) ? '0' + s : s; }
+  const d = new Date(inputFormat)
+  return ['data',pad(d.getDate()), pad(d.getMonth()+1), d.getFullYear(),'hora', d.getHours(), d.getMinutes(), d.getSeconds()].join('_')
 }
