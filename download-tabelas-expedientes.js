@@ -116,42 +116,58 @@ function carregarPagina(gridId, numeroPagina) {
   // nao consegui identificar o que esse id significa, mas eh necessario e apenas referenciado dentro da tag script
   const idMisterioso = parseSliderScriptTag(gridId);
   let urlParams = "AJAXREQUEST=" +
-      formData.ajaxRequest.replace(':', "%3A") +
+      formData.ajaxRequest +
       "&" +
-      tabelaSlider.id.replace(':', "%3A") +
+      tabelaSlider.id +
       "=" +
       numeroPagina +
       "&" +
-      formSlider.id.replace(':', "%3A") +
+      formSlider.id +
       "=" +
-      formSlider.id.replace(':', "%3A") +
+      formSlider.id +
       "&autoScroll=&javax.faces.ViewState=" +
-      viewStateId.replace(':', "%3A") +
+      viewStateId +
       "&" +
-      idMisterioso.replace(':', "%3A") +
+      idMisterioso +
       "=" +
-      idMisterioso.replace(':', "%3A") +
+      idMisterioso +
       "&AJAX%3AEVENTS_COUNT=1&";
   console.info(urlParams);
   urlParams = decodeURIComponent( unescape( unescape(urlParams)));
   console.info(urlParams);
 
-  return new Promise((resolve, reject) => {
-    jQuery.ajax({
-      url: window.location.href,
-      type: 'POST',
-      data: urlParams,
-      success: (data) => {
-        console.info(data)
-        resolve(carregarTabela(gridId, numeroPagina, data));
-      },
-      error: (error) => reject(error),
-    })
-  });
+  return fetch(window.location.href,
+      {
+        headers: {
+          'Accept': '*/*',
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        credentials: "include",
+        method: "POST",
+        body: urlParams //"AJAXREQUEST=j_id168&j_id297:j_id298=23&j_id297=j_id297&autoScroll=&javax.faces.ViewState=j_id1&j_id297:j_id299=j_id297:j_id299&AJAX:EVENTS_COUNT=1&"
+      })
+      .then(function (response) {
+        console.info("API ok!")
+        // The API call was successful!
+        return response.text();
+      }).then(function (html) {
+        console.info("identificando tabela na resposta!")
+    // Convert the HTML string into a document object
+     const parser = new DOMParser();
+     const doc = parser.parseFromString(html, 'text/html');
 
+    return carregarTabela(gridId, numeroPagina, doc); //carregarTabela("expedientePendenteGridId", 23, doc);
+
+  })
+      .catch(function (err) {
+    // There was an error
+    console.warn('Something went wrong.', err);
+  });
 }
 
 function carregarTabela(gridId, numeroPagina, data) {
+  document.getElementById("loadingText").innerText = "Carregando página: " + (Object.keys(tabelas).length + 1) + " de " + numeroDePaginas;
+
   const paginaId = gridId + "List";
 
   const grid = data.getElementById(gridId);
@@ -164,9 +180,7 @@ function carregarTabela(gridId, numeroPagina, data) {
   }
   tabelas[numeroPagina] = tabela;
   console.info("Total de paginas: " + Object.keys(tabelas).length);
-  jQuery("#loadingText").text("Páginas carregadas: " + Object.keys(tabelas).length + " de " + numeroDePaginas);
   console.info(retorno);
-  // return pagina;
   return retorno;
 }
 
@@ -245,33 +259,15 @@ function reiniciarDadosGlobais() {
 
 Object.entries(agrupadores).forEach(([key, dadosAgrupador]) => {
   const button = document.createElement("input");
+  button.classList.add("dr-tbpnl-tb-inact", "rich-tab-inactive")
   console.log(key, dadosAgrupador); // "someKey" "some value", "hello" "world", "js javascript foreach object"
   var agrupadorId = dadosAgrupador["agrupadorId"]; //'agrPendentesCiencia_header';
 
   const agrupador = document.getElementById(agrupadorId);
-  // se atualizar o jQuery, trocar bind por on
-//   jQuery("#pageBody").bind(
-//     "click",
-//     "#" + agrupadorId,
-//     function (e) {
-//       const target = jQuery(e.target);
-//       console.info(target);
-//       console.info("targetId", target[0].id);
-//       if (target[0].id != agrupadorId) {
-//         return;
-//       }
-      //     // se o clique foi direcionado a um botão, não tem porque também clicar na linha.
-      //     if (target.is('i') || target.is('button') || target.is('a') || target.hasClass('select-checkbox')) {
-      //         return;
-      //     }
-      //     alert("clicou!");
-      //   });
 
         agrupador.addEventListener(
       "click",
       function () {
-
-        jQuery("#loadingMask").css('visibility', 'visible');
       const id = dadosAgrupador["gridId"]; //"expedientePendenteGridId";
       console.info(id);
       waitFor((_) => document.getElementById(id) != null).then((_) => {
@@ -282,11 +278,14 @@ Object.entries(agrupadores).forEach(([key, dadosAgrupador]) => {
         button.addEventListener(
           "click",
           function (e) {
-            const loadingDiv = "<div class=\"loadingMask\" id=\"loadingMask\" style=\"visibility: hidden;\"><h1 id='loadingText'>Carregando...</h1></div>"
+            // const parser = new DOMParser();
+            // const loadingDiv = "<div class=\"loadingMask\" id=\"loadingMask\"><h1 id='loadingText'>Carregando...</h1></div>"
+            // const wrapper = parser.parseFromString(loadingDiv, 'text/html');
+
+            const loadingDiv = "<div class=\"loadingMask\" id=\"loadingMask\"><h1 id='loadingText'>Iniciando...</h1></div>"
             const wrapper= document.createElement('div');
             wrapper.innerHTML= loadingDiv;
             table.parentNode.insertBefore(wrapper, table);
-            jQuery("#loadingMask").css('visibility', 'visible');
 
             let totalPaginas = 1;
             waitFor((_) => document.getElementById(id) != null)
@@ -302,15 +301,10 @@ Object.entries(agrupadores).forEach(([key, dadosAgrupador]) => {
               .then((tabelasPromise) => {
                 console.info("Total no then:" + numeroDePaginas);
                 console.info(tabelasPromise);
-                document.getElementById("loadingMask").remove();
+                document.getElementById("loadingText").innerText = "Preparando arquivo final para download...";
                 baixarDoArquivo(dadosAgrupador["titulo"], tabelasPromise);
+                setTimeout( (_) => document.getElementById("loadingMask").remove(), 500);
               });
-
-            // console.info(tabelas);
-
-            // console.info(
-            //   "Todas páginas carregadas! " + Object.keys(tabelas).length
-            // );
           },
           false
         );
