@@ -1,4 +1,4 @@
-var agrupadores = {
+const agrupadores = {
   pendentes: {
     agrupadorId: "agrPendentesCiencia_header",
     gridId: "expedientePendenteGridId",
@@ -32,9 +32,26 @@ var agrupadores = {
 
 
 };
+// essas duas variaveis existem apenas para notificar o usuario do progresso do plugin.
 var tabelas = {};
 // var total = [0];
 var numeroDePaginas = undefined;
+var startTime, endTime;
+
+function start() {
+  startTime = new Date();
+}
+
+function end() {
+  endTime = new Date();
+  var timeDiff = endTime - startTime; //in ms
+  // strip the ms
+  timeDiff /= 1000;
+
+  // get seconds
+  var seconds = Math.round(timeDiff);
+  console.log(seconds + " seconds");
+}
 
 function replaceLast(find, replace, string) {
   const lastIndex = string.lastIndexOf(find);
@@ -53,7 +70,7 @@ function parseSliderScriptTag(gridId) {
   const grid = document.getElementById(gridId);
   const formSlider = grid.querySelector(".rich-inslider.rich-slider").parentNode;
   const scriptTag = formSlider.querySelector("script");
-  console.info(scriptTag.text);
+  console.debug(scriptTag.text);
   // x = scriptTag.text;
   // x = x.replace('//<![CDATA[\nnew Richfaces.Slider(\"', '');
   const retorno = {};
@@ -63,20 +80,12 @@ function parseSliderScriptTag(gridId) {
   rest = rest.substring(rest.indexOf('"') + 2);
   rest = rest.replace("//]]>", "").replaceAll("\\", "").replaceAll("'", '"');
   rest = replaceLast(")", "", rest);
-  console.info(rest);
+  // console.info(rest);
   rest = rest.split('"similarityGroupingId":"')[1];
   return rest.substring(0, rest.indexOf('"')); // ex. de retorno: j_id379:j_id381
   // obj = JSON.parse(rest);
   // console.info(obj)
 
-  // obj.parameter = JSON.stringify(obj.parameters).replaceAll('"', '').replace('{', '').replace('}', '');
-  // retorno['ajaxRequest'] = obj.containerId;
-  // retorno['postUrl'] = obj.actionUrl;
-  // retorno['formId'] = obj.similarityGroupingId;
-  // // retorno['formId'] = obj.;
-  // // retorno['formId'] = obj.;
-  // console.info(retorno);
-  // return retorno;
 }
 
 function parseSliderFormAction(gridId) {
@@ -101,7 +110,7 @@ function parseSliderFormAction(gridId) {
   retorno["formId"] = obj.similarityGroupingId;
   // retorno['formId'] = obj.;
   // retorno['formId'] = obj.;
-  console.info(retorno);
+  console.debug(retorno);
   return retorno;
 }
 //"{\"similarityGroupingId\":\"j_id379\",\"actionUrl\":\"/primeirograu/Painel/painel_usuario/advogado.seam\",\"containerId\":\"j_id168\",\"parameters\":{\"j_id379\":\"j_id379\"}}"
@@ -132,9 +141,6 @@ function carregarPagina(gridId, numeroPagina) {
       "=" +
       idMisterioso +
       "&AJAX%3AEVENTS_COUNT=1&";
-  console.info(urlParams);
-  urlParams = decodeURIComponent( unescape( unescape(urlParams)));
-  console.info(urlParams);
 
   return fetch(window.location.href,
       {
@@ -147,11 +153,9 @@ function carregarPagina(gridId, numeroPagina) {
         body: urlParams //"AJAXREQUEST=j_id168&j_id297:j_id298=23&j_id297=j_id297&autoScroll=&javax.faces.ViewState=j_id1&j_id297:j_id299=j_id297:j_id299&AJAX:EVENTS_COUNT=1&"
       })
       .then(function (response) {
-        console.info("API ok!")
         // The API call was successful!
         return response.text();
       }).then(function (html) {
-        console.info("identificando tabela na resposta!")
     // Convert the HTML string into a document object
      const parser = new DOMParser();
      const doc = parser.parseFromString(html, 'text/html');
@@ -164,9 +168,16 @@ function carregarPagina(gridId, numeroPagina) {
     console.warn('Something went wrong.', err);
   });
 }
+function alterarTextoLoading(novoTexto) {
+  const loadingText = document.getElementById("loadingText");
+  if (loadingText) {
+    loadingText.innerText = novoTexto;
+  }
+
+}
 
 function carregarTabela(gridId, numeroPagina, data) {
-  document.getElementById("loadingText").innerText = "Carregando página: " + (Object.keys(tabelas).length + 1) + " de " + numeroDePaginas;
+  alterarTextoLoading("Carregando página: " + (Object.keys(tabelas).length + 1) + " de " + numeroDePaginas);
 
   const paginaId = gridId + "List";
 
@@ -199,7 +210,7 @@ function download(filename, textInput) {
 function waitFor(conditionFunction) {
   const poll = (resolve) => {
     if (conditionFunction()) resolve();
-    else setTimeout((_) => poll(resolve), 1500);
+    else setTimeout((_) => poll(resolve), 300);
   };
 
   return new Promise(poll);
@@ -210,21 +221,21 @@ function carregarDados(gridId, totalPaginas) {
   const promises = [];
   // se tem apenas uma pagina, carrega a pagina que está na tela.
   if (totalPaginas == 1) {
-    promises[1] = Promise.resolve( carregarTabela(gridId, 1, document) );
+    promises.push( Promise.resolve( carregarTabela(gridId, 1, document) ) );
   } else {
     for (let i = totalPaginas; i >= 1; i--) {
-      promises[i] = carregarPagina(gridId, i);
+      promises.push( carregarPagina(gridId, i) );
     }
   }
   return Promise.all(promises);
 }
 
-function baixarDoArquivo(titulo, tabelas) {
+function prepararEBaixarArquivo(titulo, tabelas) {
   console.info("gerando arquivo para download...");
   let quantidadeTotalTabelas = 0;
   let arquivoFinal = "";
   let comecoArquivo =
-    "<html lang='pt-BR'><head><style>img { display: none;} table { width: 100% !important; }</style><title>" + titulo + "</title></head><body>";
+    "<html lang='pt-BR'><head><style>img { display: none;} table { width: 100% !important; }</style><title> Tabelas - " + titulo + "</title></head><body>";
 
   tabelas.sort((a, b) => (a.numeroPagina > b.numeroPagina) ? 1 : -1);
   tabelas.forEach((item, index) => {
@@ -258,66 +269,89 @@ function reiniciarDadosGlobais() {
 }
 
 Object.entries(agrupadores).forEach(([key, dadosAgrupador]) => {
-  const button = document.createElement("input");
-  button.classList.add("dr-tbpnl-tb-inact", "rich-tab-inactive")
   console.log(key, dadosAgrupador); // "someKey" "some value", "hello" "world", "js javascript foreach object"
-  var agrupadorId = dadosAgrupador["agrupadorId"]; //'agrPendentesCiencia_header';
+  const agrupadorId = dadosAgrupador[ 'agrupadorId' ]; //'agrPendentesCiencia_header';
 
-  const agrupador = document.getElementById(agrupadorId);
-
-        agrupador.addEventListener(
+  // const enclosingDiv = document.getElementById("tabProcAdvPainelIntimacaoDIV_");
+  document.querySelector("#tabProcAdvPainelIntimacaoDIV_").addEventListener(
       "click",
-      function () {
-      const id = dadosAgrupador["gridId"]; //"expedientePendenteGridId";
+      function ( event ) {
+    // console.info(event)
+        const agrupador = document.getElementById(agrupadorId);
+        const agrupadorJaAberto = agrupador.getAttribute("aria-expanded") === 'true';
+        console.info(event.target.id, agrupadorId)
+        console.info(event.target.id.includes( agrupadorId ))
+        // usando includes pq o clique pode ser no agrupador ou no seu label (que tem o id igual acrescido de _label)
+        if( !event.target.id.includes( agrupadorId ) ) {
+          return false;
+        }
+
+        // se o agrupador ja esta aberto e foi clicado, ele vai fechar e nao faz sentido tentar adicionar um botao.
+        // so adicionamos o botao qdo o agrupador esta fechado no momento do clique, porque ele se abrirá e entao
+        // poderemos adicionar o botao para o usuario ver.
+        if ( agrupadorJaAberto ) {
+          return false;
+        }
+
+
+        const id = dadosAgrupador["gridId"]; //"expedientePendenteGridId";
       console.info(id);
       waitFor((_) => document.getElementById(id) != null).then((_) => {
+        console.info("Adicionando botao para baixar tabela no agrupador: " + dadosAgrupador['titulo'])
         // grid = document.getElementById(id);
+        const button = document.createElement("input");
+        button.classList.add("dr-tbpnl-tb-inact", "rich-tab-inactive")
         const table = document.getElementById(id + "List");
         button.type = "button";
+        const idBotao = id + "baixarTabela"
+        button.id = idBotao;
         button.value = "Baixar tabela";
         button.addEventListener(
-          "click",
-          function (e) {
-            // const parser = new DOMParser();
-            // const loadingDiv = "<div class=\"loadingMask\" id=\"loadingMask\"><h1 id='loadingText'>Carregando...</h1></div>"
-            // const wrapper = parser.parseFromString(loadingDiv, 'text/html');
-
-            const loadingDiv = "<div class=\"loadingMask\" id=\"loadingMask\"><h1 id='loadingText'>Iniciando...</h1></div>"
-            const wrapper= document.createElement('div');
-            wrapper.innerHTML= loadingDiv;
-            table.parentNode.insertBefore(wrapper, table);
-
-            let totalPaginas = 1;
-            waitFor((_) => document.getElementById(id) != null)
-              .then((_) => {
-                const grid = document.getElementById(id);
-                const tdTotalPaginas = grid && grid.querySelector(".rich-inslider-right-num");
-                const totalPaginasTabela = tdTotalPaginas && tdTotalPaginas.textContent;
-                totalPaginas = totalPaginasTabela || totalPaginas;
-                console.info(totalPaginas, id);
-                numeroDePaginas = totalPaginas
-                return carregarDados(id, totalPaginas);
-              })
-              .then((tabelasPromise) => {
-                console.info("Total no then:" + numeroDePaginas);
-                console.info(tabelasPromise);
-                document.getElementById("loadingText").innerText = "Preparando arquivo final para download...";
-                baixarDoArquivo(dadosAgrupador["titulo"], tabelasPromise);
-                setTimeout( (_) => document.getElementById("loadingMask").remove(), 500);
-              });
-          },
-          false
+            "click",
+            (_) => configurarBotao(dadosAgrupador, id, table),
+            false
         );
-
-        table.parentNode.insertBefore(button, table);
+        console.info("idBotao =>" ,document.getElementById(idBotao));
+        // se o botão já existe, não adicionamos um novo para não ficar 2 botões visíveis.
+        if (!document.getElementById(idBotao)) {
+          table.parentNode.insertBefore(button, table);
+        }
       });
     },
     false
   );
 });
 
+function configurarBotao(dadosAgrupador, id, table) {
+  start();
+  const parser = new DOMParser();
+  const loadingDiv = "<div class='loadingMask' id='loadingMask'><h1 id='loadingText'>Iniciando...</h1></div>"
+  const wrapper = parser.parseFromString(loadingDiv, 'text/html').getElementById("loadingMask");
+  console.info(wrapper)
+  table.parentNode.insertBefore(wrapper, table);
+
+  let totalPaginas = 1;
+
+  const grid = document.getElementById(id);
+  const tdTotalPaginas = grid && grid.querySelector(".rich-inslider-right-num");
+  const totalPaginasTabela = tdTotalPaginas && tdTotalPaginas.textContent;
+  totalPaginas = totalPaginasTabela || totalPaginas;
+  console.info(totalPaginas, id);
+  numeroDePaginas = totalPaginas
+  carregarDados(id, totalPaginas)
+      .then((tabelasPromise) => {
+        console.info("Total no then:" + numeroDePaginas);
+        console.info("tamanho tabelasPromise:" + tabelasPromise.length);
+        console.info(tabelasPromise);
+        alterarTextoLoading( "Preparando arquivo final para download..." );
+        prepararEBaixarArquivo(dadosAgrupador["titulo"], tabelasPromise);
+        setTimeout( (_) => document.getElementById("loadingMask").remove(), 500);
+        end();
+      });
+}
+
 function convertDate(inputFormat) {
   function pad(s) { return (s < 10) ? '0' + s : s; }
   const d = new Date(inputFormat)
-  return ['data',pad(d.getDate()), pad(d.getMonth()+1), d.getFullYear(),'hora', d.getHours(), d.getMinutes(), d.getSeconds()].join('_')
+  return ['data',pad(d.getDate()), pad(d.getMonth()+1), d.getFullYear(),'hora', pad(d.getHours()), pad(d.getMinutes()), pad(d.getSeconds())].join('_')
 }
